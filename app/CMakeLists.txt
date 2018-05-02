@@ -1,8 +1,8 @@
 # For more information about using CMake with Android Studio, read the
 # documentation: https://d.android.com/studio/projects/add-native-code.html
 
-set(pathToProject /home/denglob/AndroidProjects/CppDemo)
-set(pathToOpenCv /home/denglob/AndroidProjects/OpenCVsdk/OpenCV-android-sdk)
+set(pathToProject /home/d_smishny/AndroidStudioProjects/CppDemo)
+set(pathToOpenCv /home/d_smishny/CipherMe_Android_App/OpenCV-android-sdk)
 
 # Sets the minimum version of CMake required to build the native library.
 

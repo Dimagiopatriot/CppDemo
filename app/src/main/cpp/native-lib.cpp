@@ -44,20 +44,18 @@ Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
     vector<Point> pointsseq;    //used to save the approximated sides of each contour
 
     int mark,A,B,C,top,right,bottom,median1,median2,outlier;
-    float AB,BC,CA, dist,slope, areat,arear,areab, large, padding;
+    float AB,BC,CA, dist,slope;
 
     int align,orientation;
 
-    int DBG=1;
-
     traces = Scalar(0,0,0);
-    qr_raw = Mat::zeros(100, 100, CV_8UC3 );
+    qr_raw = Mat::zeros(500, 500, CV_8UC3 );
 
-    qr = Mat::zeros(100, 100, CV_8UC3 );
-    qr_gray = Mat::zeros(100, 100, CV_8UC1);
+    qr = Mat::zeros(500, 500, CV_8UC3 );
+    qr_gray = Mat::zeros(500, 500, CV_8UC1);
 
     cvtColor(image,gray,CV_RGB2GRAY);		// Convert Image captured from Image Input to GrayScale
-    Canny(gray, edges, 100 , 200, 3);		// Apply Canny edge detection on the gray image
+    Canny(gray, edges, 10 , 100, 3);		// Apply Canny edge detection on the gray image
 
 
     findContours( edges, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours with hierarchy
@@ -84,7 +82,7 @@ Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
     for( int i = 0; i < contours.size(); i++ )
     {
         //Find the approximated polygon of the contour we are examining
-        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.02, true);
+        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.1, true);
         if (pointsseq.size() == 4)      // only quadrilaterals contours are examined
         {
             int k=i;
@@ -224,69 +222,6 @@ Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
             drawContours( image, contours, top , Scalar(255,200,0), 2, 8, hierarchy, 0 );
             drawContours( image, contours, right , Scalar(0,0,255), 2, 8, hierarchy, 0 );
             drawContours( image, contours, bottom , Scalar(255,0,100), 2, 8, hierarchy, 0 );
-
-            // Insert Debug instructions here
-            if(DBG==1)
-            {
-                // Debug Prints
-                // Visualizations for ease of understanding
-                if (slope > 5)
-                    circle( traces, Point(10,20) , 5 ,  Scalar(0,0,255), -1, 8, 0 );
-                else if (slope < -5)
-                    circle( traces, Point(10,20) , 5 ,  Scalar(255,255,255), -1, 8, 0 );
-
-                // Draw contours on Trace image for analysis
-                drawContours( traces, contours, top , Scalar(255,0,100), 1, 8, hierarchy, 0 );
-                drawContours( traces, contours, right , Scalar(255,0,100), 1, 8, hierarchy, 0 );
-                drawContours( traces, contours, bottom , Scalar(255,0,100), 1, 8, hierarchy, 0 );
-
-                // Draw points (4 corners) on Trace image for each Identification marker
-                circle( traces, L[0], 2,  Scalar(255,255,0), -1, 8, 0 );
-                circle( traces, L[1], 2,  Scalar(0,255,0), -1, 8, 0 );
-                circle( traces, L[2], 2,  Scalar(0,0,255), -1, 8, 0 );
-                circle( traces, L[3], 2,  Scalar(128,128,128), -1, 8, 0 );
-
-                circle( traces, M[0], 2,  Scalar(255,255,0), -1, 8, 0 );
-                circle( traces, M[1], 2,  Scalar(0,255,0), -1, 8, 0 );
-                circle( traces, M[2], 2,  Scalar(0,0,255), -1, 8, 0 );
-                circle( traces, M[3], 2,  Scalar(128,128,128), -1, 8, 0 );
-
-                circle( traces, O[0], 2,  Scalar(255,255,0), -1, 8, 0 );
-                circle( traces, O[1], 2,  Scalar(0,255,0), -1, 8, 0 );
-                circle( traces, O[2], 2,  Scalar(0,0,255), -1, 8, 0 );
-                circle( traces, O[3], 2,  Scalar(128,128,128), -1, 8, 0 );
-
-                // Draw point of the estimated 4th Corner of (entire) QR Code
-                circle( traces, N, 2,  Scalar(255,255,255), -1, 8, 0 );
-
-                // Draw the lines used for estimating the 4th Corner of QR Code
-                line(traces,M[1],N,Scalar(0,0,255),1,8,0);
-                line(traces,O[3],N,Scalar(0,0,255),1,8,0);
-
-
-                // Show the Orientation of the QR Code wrt to 2D Image Space
-                int fontFace = FONT_HERSHEY_PLAIN;
-
-                if(orientation == CV_QR_NORTH)
-                {
-                    putText(traces, "NORTH", Point(20,30), fontFace, 1, Scalar(0, 255, 0), 1, 8);
-                }
-                else if (orientation == CV_QR_EAST)
-                {
-                    putText(traces, "EAST", Point(20,30), fontFace, 1, Scalar(0, 255, 0), 1, 8);
-                }
-                else if (orientation == CV_QR_SOUTH)
-                {
-                    putText(traces, "SOUTH", Point(20,30), fontFace, 1, Scalar(0, 255, 0), 1, 8);
-                }
-                else if (orientation == CV_QR_WEST)
-                {
-                    putText(traces, "WEST", Point(20,30), fontFace, 1, Scalar(0, 255, 0), 1, 8);
-                }
-
-                    // Debug Prints
-            }
-
         }
     }
 

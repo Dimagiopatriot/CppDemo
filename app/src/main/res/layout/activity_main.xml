@@ -9,7 +9,8 @@
     <org.opencv.android.JavaCameraView
         android:id="@+id/getFromCamera"
         android:layout_width="match_parent"
-        android:layout_height="400dp" />
+        android:layout_height="350dp" />
+
 
     <android.support.v7.widget.AppCompatImageView
         android:layout_below="@+id/getFromCamera"
@@ -18,5 +19,14 @@
         android:id="@+id/result"
         android:layout_width="100dp"
         android:layout_height="100dp" />
+
+    <Switch
+        android:id="@+id/light"
+        android:layout_below="@id/result"
+        android:text="Turn on/off light"
+        android:textAlignment="textEnd"
+        android:checked="false"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
 </RelativeLayout>

@@ -3,20 +3,20 @@ package com.cipherme.cppdemo;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.os.Handler;
 import android.support.annotation.UiThread;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
-import android.widget.TextView;
+import android.widget.Switch;
 import android.widget.Toast;
+
+import com.cipherme.gpe.GPEReader;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.JavaCamera2View;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -31,8 +31,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     private static final String TAG = "MainActivity";
     private static final int CAMERA_REQUEST_CODE = 128;
-    protected Handler handler;
     protected Bitmap mBitmap;
+    protected GPEReader gpeReader;
+    protected Switch mLight;
 
     protected Mat mMainFrame;
     protected Mat mQrCode;
@@ -77,6 +78,21 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         mJavaCamera2View.setCvCameraViewListener(this);
 
         mBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        gpeReader = new GPEReader();
+
+        mLight = findViewById(R.id.light);
+        mLight.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (mJavaCamera2View != null)
+                    if (isChecked) {
+                        mJavaCamera2View.turnOnTheFlash();
+                    }
+                    else {
+                         mJavaCamera2View.turnOffTheFlash();
+                    }
+            }
+        });
 
         ActivityCompat.requestPermissions(MainActivity.this,
                 new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST_CODE);
@@ -104,7 +120,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        handler.removeCallbacks(null);
         if (mJavaCamera2View != null)
             mJavaCamera2View.disableView();
     }
@@ -112,7 +127,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     public void onCameraViewStarted(int width, int height) {
         mMainFrame = new Mat(height, width, CvType.CV_8UC4);
-        mQrCode = new Mat(100, 100, CvType.CV_8UC1);
+        mQrCode = new Mat(500, 500, CvType.CV_8UC1);
     }
 
     @Override
@@ -125,13 +140,26 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         mMainFrame = inputFrame.rgba();
         calcQR(mMainFrame.nativeObj, mQrCode.nativeObj);
+
+        mBitmap = Bitmap.createBitmap(mQrCode.cols(), mQrCode.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(mQrCode, mBitmap);
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                setBitmap(mBitmap);
-            }
-        });
+
+//        final Mat gpe = new Mat();
+//        boolean gzeFound = gpeReader.findGPE(mQrCode, 2.0f, 3.2f, 2.0f,
+//                3.2f, 10.0f, 10.0f, gpe, 1.5);
+//
+//        if (gzeFound) {
+//            final Bitmap bitmap = Bitmap.createBitmap(gpe.cols(), gpe.rows(), Bitmap.Config.ARGB_8888);
+//            Utils.matToBitmap(gpe, bitmap);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    setBitmap(mBitmap);
+                }
+            });
+//        }
+
         return mMainFrame;
     }
 
@@ -140,6 +168,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         if (mQrResult != null)
             mQrResult.setImageBitmap(bitmap);
     }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
