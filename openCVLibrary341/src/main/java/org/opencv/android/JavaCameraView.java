@@ -377,15 +377,32 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
         }
     }
 
+    public void setZoom(int zoom) {
+        Camera.Parameters parameters = mCamera.getParameters();
+        int maxZoom = parameters.getMaxZoom();
+        if (parameters.isZoomSupported()) {
+            if (zoom >=0 && zoom < maxZoom) {
+                parameters.setZoom(zoom);
+            } else {
+                if (zoom == -1) {
+                    parameters.setZoom(maxZoom);
+                }
+            }
+        }
+        mCamera.setParameters(parameters);
+    }
+
     public void turnOffTheFlash() {
         Camera.Parameters params = mCamera.getParameters();
         params.setFlashMode(params.FLASH_MODE_OFF);
         mCamera.setParameters(params);
+//        setZoom(-1);
     }
 
     public void turnOnTheFlash() {
         Camera.Parameters params = mCamera.getParameters();
         params.setFlashMode(params.FLASH_MODE_TORCH);
         mCamera.setParameters(params);
+//        setZoom(-1);
     }
 }

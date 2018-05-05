@@ -22,10 +22,9 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.utils.Converters;
 
-public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
+public class MainActivity extends AppCompatActivity implements
+        CameraBridgeViewBase.CvCameraViewListener2 {
 
     // Used to load the 'native-lib' library on application startup.
 
@@ -77,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         mJavaCamera2View.setVisibility(View.VISIBLE);
         mJavaCamera2View.setCvCameraViewListener(this);
 
-        mBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        mBitmap = Bitmap.createBitmap(500, 500, Bitmap.Config.ARGB_8888);
         gpeReader = new GPEReader();
 
         mLight = findViewById(R.id.light);
@@ -127,7 +126,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     public void onCameraViewStarted(int width, int height) {
         mMainFrame = new Mat(height, width, CvType.CV_8UC4);
-        mQrCode = new Mat(500, 500, CvType.CV_8UC1);
+        mQrCode = new Mat(500, 500, CvType.CV_8UC3);
+        mJavaCamera2View.setZoom(15);
     }
 
     @Override
@@ -139,26 +139,26 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         mMainFrame = inputFrame.rgba();
-        calcQR(mMainFrame.nativeObj, mQrCode.nativeObj);
+        final int qrFounded = calcQR(mMainFrame.nativeObj, mQrCode.nativeObj);
 
-        mBitmap = Bitmap.createBitmap(mQrCode.cols(), mQrCode.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(mQrCode, mBitmap);
+        if (qrFounded == 1) {
 
-//        final Mat gpe = new Mat();
-//        boolean gzeFound = gpeReader.findGPE(mQrCode, 2.0f, 3.2f, 2.0f,
-//                3.2f, 10.0f, 10.0f, gpe, 1.5);
-//
-//        if (gzeFound) {
-//            final Bitmap bitmap = Bitmap.createBitmap(gpe.cols(), gpe.rows(), Bitmap.Config.ARGB_8888);
-//            Utils.matToBitmap(gpe, bitmap);
+            mBitmap = Bitmap.createBitmap(mQrCode.cols(), mQrCode.rows(), Bitmap.Config.ARGB_8888);
 
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    setBitmap(mBitmap);
-                }
-            });
-//        }
+            Utils.matToBitmap(mQrCode, mBitmap);
+
+            final Mat gpe = new Mat();
+
+            final boolean gzeFound = gpeReader.findGPE(mQrCode, 2.0f, 3.2f, 2.0f,
+                    3.2f, 10.0f, 10.0f, gpe, 1.5);
+
+            if (gzeFound) {
+                final Bitmap bitmap = Bitmap.createBitmap(gpe.cols(), gpe.rows(), Bitmap.Config.ARGB_8888);
+                Utils.matToBitmap(gpe, bitmap);
+
+                runOnUiThread(() -> setBitmap(bitmap));
+            }
+        }
 
         return mMainFrame;
     }
@@ -188,14 +188,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                     // functionality that depends on this permission.
                     Toast.makeText(MainActivity.this, "Permission denied to read your External storage", Toast.LENGTH_SHORT).show();
                 }
-                return;
             }
         }
     }
 
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
     public native int calcQR(long matRes, long matQr);
 }

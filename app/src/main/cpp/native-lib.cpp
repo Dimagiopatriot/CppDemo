@@ -55,7 +55,7 @@ Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
     qr_gray = Mat::zeros(500, 500, CV_8UC1);
 
     cvtColor(image,gray,CV_RGB2GRAY);		// Convert Image captured from Image Input to GrayScale
-    Canny(gray, edges, 10 , 100, 3);		// Apply Canny edge detection on the gray image
+    Canny(gray, edges, 100, 200, 3);		// Apply Canny edge detection on the gray image
 
 
     findContours( edges, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours with hierarchy
@@ -82,7 +82,7 @@ Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
     for( int i = 0; i < contours.size(); i++ )
     {
         //Find the approximated polygon of the contour we are examining
-        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.1, true);
+        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.01, true);
         if (pointsseq.size() == 4)      // only quadrilaterals contours are examined
         {
             int k=i;
@@ -209,19 +209,20 @@ Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
             {
                 warp_matrix = getPerspectiveTransform(src, dst);
                 warpPerspective(image, qr_raw, warp_matrix, Size(qr.cols, qr.rows));
-                copyMakeBorder( qr_raw, qr, 10, 10, 10, 10,BORDER_CONSTANT, Scalar(255,255,255) );
 
-                cvtColor(qr,qr_gray,CV_RGB2GRAY);
-                threshold(qr_gray, qr_thres, 127, 255, CV_THRESH_BINARY);
+                Mat sharped = Mat::zeros(500, 500, CV_8UC3);
+                GaussianBlur(qr_raw, sharped, Size(0, 0), 3);
+                addWeighted(qr_raw, 1.5, sharped, -0.5, 0, sharped);
 
-                //threshold(qr_gray, qr_thres, 0, 255, CV_THRESH_OTSU);
-                //for( int d=0 ; d < 4 ; d++){	src.pop_back(); dst.pop_back(); }
+                copyMakeBorder( sharped, qr_thres, 10, 10, 10, 10,BORDER_CONSTANT, Scalar(0,0,0));
             }
 
             //Draw contours on the image
             drawContours( image, contours, top , Scalar(255,200,0), 2, 8, hierarchy, 0 );
             drawContours( image, contours, right , Scalar(0,0,255), 2, 8, hierarchy, 0 );
             drawContours( image, contours, bottom , Scalar(255,0,100), 2, 8, hierarchy, 0 );
+
+            return (jint) 1;
         }
     }
 
@@ -464,4 +465,27 @@ bool getIntersectionPoint(Point2f a1, Point2f a2, Point2f b1, Point2f b2, Point2
 float cross(Point2f v1,Point2f v2)
 {
     return v1.x*v2.y - v1.y*v2.x;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_cipherme_gpe_GPEReader_unsharpMasking(JNIEnv *env, jobject instance, jlong matSrc,
+                                               jlong matDest) {
+    Mat& src = *(Mat*) matSrc;
+    Mat& dest = *(Mat*) matDest;
+
+    GaussianBlur(src, dest, Size(0, 0), 3);
+    addWeighted(src, 1.5, dest, -0.5, 0, dest);
+
+}
+
+extern "C"
+JNIEXPORT jdouble JNICALL
+Java_com_cipherme_gpe_GPEReader_laplacianMode(JNIEnv *env, jobject instance, jlong matSrc) {
+
+    Mat& src = *(Mat*) matSrc;
+
+    Mat mat = Mat_<double>(3,1) << (-1, 2,-1);
+    return (jdouble) 0.0;
+
 }
