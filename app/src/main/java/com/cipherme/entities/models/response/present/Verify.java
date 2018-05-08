@@ -8,4 +8,11 @@ public final class Verify extends Response<VerifyData> {
     public VerifyData getResult() {
         return data;
     }
+
+    @Override
+    public String toString() {
+        return "Verify{" +
+                "data=" + data == null ? "" : data.toString() +
+                '}';
+    }
 }

@@ -16,4 +16,12 @@ public final class ScanResult {
     public String getDescription() {
         return description;
     }
+
+    @Override
+    public String toString() {
+        return "ScanResult{" +
+                "code=" + code +
+                ", description='" + description + '\'' +
+                '}';
+    }
 }

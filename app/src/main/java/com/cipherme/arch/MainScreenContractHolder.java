@@ -3,6 +3,9 @@ package com.cipherme.arch;
 import com.cipherme.entities.models.response.present.GetKey;
 import com.cipherme.entities.models.response.present.Verify;
 
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.core.Mat;
+
 public interface MainScreenContractHolder {
 
     interface MainView extends MVPView {
@@ -12,6 +15,10 @@ public interface MainScreenContractHolder {
         void onSuccessfulAuth(String token);
 
         void onSuccessfulVerify(Verify verify);
+
+        void onSuccessfulQrGpe(String[] results, String token);
+
+        void onShowGPE(Mat mat);
 
         void onFailure(Throwable throwable);
 
@@ -24,6 +31,10 @@ public interface MainScreenContractHolder {
 
         void auth(String authKey);
 
+        void prepareVerify(String token);
+
         void verify(String gpe, String qr, String token);
+
+        void computeGpe(CameraBridgeViewBase.CvCameraViewFrame frame);
     }
 }

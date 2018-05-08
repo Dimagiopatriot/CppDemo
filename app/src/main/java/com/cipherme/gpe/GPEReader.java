@@ -15,8 +15,6 @@ import org.opencv.imgproc.Imgproc;
 import java.util.Arrays;
 import java.util.List;
 
-import io.reactivex.Observable;
-
 public class GPEReader {
 
     private static final String TAG = "GPEReader";
@@ -28,7 +26,7 @@ public class GPEReader {
         Core.MinMaxLocResult maxLocResult = Core.minMaxLoc(roi);
 
         Imgproc.threshold(roi, roi, maxLocResult.maxVal / thresDeleter, 255, Imgproc.THRESH_BINARY_INV);
-        List<MatOfPoint> needCont = Utils.findAndNormCont(roi, false);
+        List<MatOfPoint> needCont = UtilsGPE.findAndNormCont(roi, false);
 
         float imageCenterX = (float) roi.cols() * 0.5f;
         float imageCenterY = (float) roi.rows() * 0.5f;
@@ -84,11 +82,11 @@ public class GPEReader {
                 Point[] coos = new Point[4];
                 Point[] listData = new Point[4];
                 rectGze.points(listData);
-                final Point[][] data = Utils.fillDataArray(roi);
+                final Point[][] data = UtilsGPE.fillDataArray(roi);
                 {
                     Point[] tempListData = Arrays.copyOf(listData, listData.length);
                     for (int j = 0; j < listData.length; ++j) {
-                        listData[Utils.nearestBoard(tempListData[j], data)] = tempListData[j];
+                        listData[UtilsGPE.nearestBoard(tempListData[j], data)] = tempListData[j];
                     }
                     for (Point item : listData) {
                         item.x = Math.round(item.x);
@@ -118,13 +116,7 @@ public class GPEReader {
                 unsharpMasking(weirdGpe.nativeObj, gpe.nativeObj);
 
                 Mat temp = gpe.clone();
-                laplacianMode(temp.nativeObj);
-                temp.convertTo(gpe, -1, 1.1, 47);
-
-                double laplacianMode = laplacianMode(gpe.nativeObj);
-
-                Log.d(TAG, "Laplacian GPE : " + String.valueOf(laplacianMode));
-
+                temp.convertTo(gpe, -1, 0.95, 40);
 
                 return true;
             }
@@ -134,6 +126,6 @@ public class GPEReader {
 
     private native void unsharpMasking(long matSrc, long matDest);
 
-    private native double laplacianMode(long matSrc);
+    public native double laplacianMode(long matSrc);
 
 }

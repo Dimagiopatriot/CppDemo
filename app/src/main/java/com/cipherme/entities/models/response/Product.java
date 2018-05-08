@@ -2,6 +2,8 @@ package com.cipherme.entities.models.response;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
+
 public final class Product {
 
     @SerializedName("title")
@@ -9,7 +11,7 @@ public final class Product {
     @SerializedName("image")
     private String image;
     @SerializedName("info")
-    private String info;
+    private List<String> info;
 
     public String getTitle() {
         return title;
@@ -19,7 +21,16 @@ public final class Product {
         return image;
     }
 
-    public String getInfo() {
+    public List<String> getInfo() {
         return info;
+    }
+
+    @Override
+    public String toString() {
+        return "Product{" +
+                "title='" + title + '\'' +
+                ", image='" + image + '\'' +
+                ", info='" + info == null ? "null" : info.toString() + '\'' +
+                '}';
     }
 }

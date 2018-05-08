@@ -12,7 +12,7 @@ import retrofit2.http.POST;
 
 public interface VerifyApi {
 
-    @POST("/verify/")
+    @POST("verify/")
     Observable<Verify> getVerifiedResult(@HeaderMap Map<String, String> headers, @Body VerifyRequest request);
 
 }

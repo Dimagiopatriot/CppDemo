@@ -19,4 +19,12 @@ public final class VerifyData {
     public Product getProduct() {
         return product;
     }
+
+    @Override
+    public String toString() {
+        return "VerifyData{" +
+                "scanResult=" + scanResult == null ? "scan: null" : scanResult.toString() +
+                ", product=" + product == null ? "product: null" : product.toString() +
+                '}';
+    }
 }

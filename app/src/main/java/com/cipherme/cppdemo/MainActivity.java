@@ -1,6 +1,7 @@
 package com.cipherme.cppdemo;
 
-import android.Manifest;
+import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.support.annotation.UiThread;
@@ -13,29 +14,40 @@ import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.Toast;
 
+import com.cipherme.api.RetrofitProvider;
+import com.cipherme.arch.MainScreenContractHolder;
+import com.cipherme.entities.models.response.present.GetKey;
+import com.cipherme.entities.models.response.present.Verify;
 import com.cipherme.gpe.GPEReader;
+import com.cipherme.util.Utils;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
 
 public class MainActivity extends AppCompatActivity implements
-        CameraBridgeViewBase.CvCameraViewListener2 {
+        CameraBridgeViewBase.CvCameraViewListener2, MainScreenContractHolder.MainView {
 
     // Used to load the 'native-lib' library on application startup.
 
     private static final String TAG = "MainActivity";
-    private static final int CAMERA_REQUEST_CODE = 128;
+    private static final int REQUEST_CODE_CAMERA_PERMISSION = 128;
+
     protected Bitmap mBitmap;
     protected GPEReader gpeReader;
     protected Switch mLight;
+    protected MainPresenter mMainPresenter;
 
     protected Mat mMainFrame;
     protected Mat mQrCode;
+
+    Rect rect;
+
+    protected RetrofitProvider retrofitProvider = new RetrofitProvider();
 
     static {
         System.loadLibrary("native-lib");
@@ -44,12 +56,16 @@ public class MainActivity extends AppCompatActivity implements
 
     protected JavaCameraView mJavaCamera2View;
     protected ImageView mQrResult;
+    protected ProgressDialog dialog;
 
     protected BaseLoaderCallback mBaseLoaderCallback;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        retrofitProvider.start();
+        mMainPresenter = new MainPresenter(retrofitProvider.getRetrofit(), this);
 
         mQrResult = findViewById(R.id.result);
 
@@ -92,9 +108,19 @@ public class MainActivity extends AppCompatActivity implements
                     }
             }
         });
+    }
 
-        ActivityCompat.requestPermissions(MainActivity.this,
-                new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST_CODE);
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (Utils.hasPermissions(this, Utils.permissions)) {
+            mMainPresenter.attachView(this);
+            showProgressDialog(this);
+            mMainPresenter.getKey(Utils.getDeviceUUID(this));
+        }
+        else {
+            attemptToPermissions();
+        }
     }
 
     @Override
@@ -114,6 +140,12 @@ public class MainActivity extends AppCompatActivity implements
         super.onPause();
         if (mJavaCamera2View != null)
             mJavaCamera2View.disableView();
+    }
+
+    @Override
+    protected void onStop() {
+        mMainPresenter.detachView();
+        super.onStop();
     }
 
     @Override
@@ -138,29 +170,19 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+
         mMainFrame = inputFrame.rgba();
-        final int qrFounded = calcQR(mMainFrame.nativeObj, mQrCode.nativeObj);
-
-        if (qrFounded == 1) {
-
-            mBitmap = Bitmap.createBitmap(mQrCode.cols(), mQrCode.rows(), Bitmap.Config.ARGB_8888);
-
-            Utils.matToBitmap(mQrCode, mBitmap);
-
-            final Mat gpe = new Mat();
-
-            final boolean gzeFound = gpeReader.findGPE(mQrCode, 2.0f, 3.2f, 2.0f,
-                    3.2f, 10.0f, 10.0f, gpe, 1.5);
-
-            if (gzeFound) {
-                final Bitmap bitmap = Bitmap.createBitmap(gpe.cols(), gpe.rows(), Bitmap.Config.ARGB_8888);
-                Utils.matToBitmap(gpe, bitmap);
-
-                runOnUiThread(() -> setBitmap(bitmap));
-            }
-        }
-
+        mMainPresenter.computeGpe(inputFrame);
         return mMainFrame;
+    }
+
+    @Override
+    public void onShowGPE(Mat mat) {
+        if (mat != null) {
+            final Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+            org.opencv.android.Utils.matToBitmap(mat, bitmap);
+            runOnUiThread(() -> setBitmap(bitmap));
+        }
     }
 
     @UiThread
@@ -169,28 +191,66 @@ public class MainActivity extends AppCompatActivity implements
             mQrResult.setImageBitmap(bitmap);
     }
 
-
+    @Override
+    public void onSuccessfulGetKey(GetKey getKey) {
+        mMainPresenter.auth(getKey.getResult().getAuthKey());
+    }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+    public void onSuccessfulAuth(String token) {
+        hideProgressDialog();
+        mMainPresenter.prepareVerify(token);
+    }
+
+    @Override
+    public void onSuccessfulQrGpe(String[] results, String token) {
+        showProgressDialog(this);
+        mMainPresenter.verify(results[1], results[0], token);
+    }
+
+    @Override
+    public void onSuccessfulVerify(Verify verify) {
+        hideProgressDialog();
+        Toast.makeText(this, "Verify success:\n" + verify.toString(), Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onFailure(Throwable throwable) {
+        hideProgressDialog();
+        Toast.makeText(this, throwable.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onFailure(String message) {
+        hideProgressDialog();
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
+    private void attemptToPermissions() {
+        ActivityCompat.requestPermissions(this, com.cipherme.util.Utils.permissions, REQUEST_CODE_CAMERA_PERMISSION);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         switch (requestCode) {
-            case CAMERA_REQUEST_CODE: {
-
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (mJavaCamera2View != null && !mJavaCamera2View.isEnabled())
-                        mJavaCamera2View.enableView();
-                } else {
-
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-                    Toast.makeText(MainActivity.this, "Permission denied to read your External storage", Toast.LENGTH_SHORT).show();
+            case REQUEST_CODE_CAMERA_PERMISSION:
+                if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                    showProgressDialog(this);
+                    mMainPresenter.getKey(com.cipherme.util.Utils.getDeviceUUID(this));
                 }
-            }
+                break;
+            default:
+                break;
         }
     }
 
-    public native int calcQR(long matRes, long matQr);
+    public void showProgressDialog(Context context) {
+        dialog = ProgressDialog.show(context, "", "Please wait....");
+    }
+
+    public void hideProgressDialog() {
+        if (dialog != null)
+            dialog.dismiss();
+    }
 }

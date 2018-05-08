@@ -1,7 +1,5 @@
 package com.cipherme.util;
 
-import com.cipherme.util.ExponentialBackoff;
-
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
@@ -14,6 +12,6 @@ public class RxUtil {
         return observable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .unsubscribeOn(Schedulers.io())
-                .retryWhen(ExponentialBackoff.exponentialBackoffForExceptions(1, 4, TimeUnit.SECONDS, Exception.class));
+/*                .retryWhen(ExponentialBackoff.exponentialBackoffForExceptions(1, 4, TimeUnit.SECONDS, Exception.class))*/;
     }
 }

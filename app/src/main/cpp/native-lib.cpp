@@ -23,7 +23,7 @@ float cross(Point2f v1,Point2f v2);
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_cipherme_cppdemo_MainActivity_calcQR(JNIEnv *env, jobject instance,
+Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobject instance,
                             jlong matRes, jlong matQr) {
     Mat& image = *(Mat*) matRes;
     Mat& qr_thres = *(Mat*) matQr;
@@ -485,7 +485,16 @@ Java_com_cipherme_gpe_GPEReader_laplacianMode(JNIEnv *env, jobject instance, jlo
 
     Mat& src = *(Mat*) matSrc;
 
-    Mat mat = Mat_<double>(3,1) << (-1, 2,-1);
-    return (jdouble) 0.0;
+    Mat M = Mat_<double >(3, 1) << (1, 2, -1);
+    Mat G = getGaussianKernel(3,-1,CV_64F);
+    Mat Lx, Ly;
+
+    sepFilter2D(matSrc, Lx, CV_64F, M, G);
+    sepFilter2D(matSrc, Ly, CV_64F, G, M);
+    Mat FM = abs(Lx) + abs(Ly);
+
+//    delete M, G, Lx, Ly;
+
+    return (jdouble) mean(FM).val[0];
 
 }

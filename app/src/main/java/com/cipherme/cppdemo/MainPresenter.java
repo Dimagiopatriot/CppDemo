@@ -1,23 +1,34 @@
 package com.cipherme.cppdemo;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.cipherme.api.GetKeyAuthApi;
 import com.cipherme.api.VerifyApi;
 import com.cipherme.api.headers.HeadersProvider;
 import com.cipherme.arch.BasePresenter;
 import com.cipherme.arch.MainScreenContractHolder;
+import com.cipherme.entities.models.detect.MatQrBridge;
 import com.cipherme.entities.models.request.AuthRequest;
 import com.cipherme.entities.models.request.GetKeyRequest;
 import com.cipherme.entities.models.request.VerifyRequest;
 import com.cipherme.entities.models.response.present.Auth;
 import com.cipherme.entities.models.response.present.GetKey;
+import com.cipherme.entities.models.response.present.Verify;
 import com.cipherme.util.RxUtil;
+import com.cipherme.util.Utils;
 
-import java.util.HashMap;
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.core.Mat;
+
 import java.util.Map;
 
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Retrofit;
 
 public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainView> implements
@@ -27,21 +38,23 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
     CompositeDisposable mDisposable;
     GetKeyAuthApi mGetKeyApi;
     VerifyApi mVerifyApi;
+    MatQrBridge mMatQrBridge;
+
+    Observable<Mat> gpeObservable;
+    ObservableEmitter<Mat> frameObservableEmitter;
+    Disposable frameDisposable;
 
     public MainPresenter(Retrofit retrofit, MainScreenContractHolder.MainView mView) {
         this.mView = mView;
         mDisposable = new CompositeDisposable();
         mGetKeyApi = retrofit.create(GetKeyAuthApi.class);
         mVerifyApi = retrofit.create(VerifyApi.class);
+        mMatQrBridge = new MatQrBridge();
     }
 
     @Override
     public void getKey(String uuid) {
-        final Map<String, String> headers = new HashMap<>(3);
-
-        headers.put(HeadersProvider.Key.VERSION.getValue(), "2.0");
-        headers.put(HeadersProvider.Key.ACCEPT_LANGUAGE.getValue(), "ru");
-        headers.put(HeadersProvider.Key.CONTENT_TYPE.getValue(), "application/json");
+        final Map<String, String> headers = Utils.baseHeaders();
 
         mDisposable.add(
                 RxUtil.buildRxRequest(mGetKeyApi
@@ -51,11 +64,7 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
 
     @Override
     public void auth(String authKey) {
-        final Map<String, String> headers = new HashMap<>(4);
-
-        headers.put(HeadersProvider.Key.VERSION.getValue(), "2.0");
-        headers.put(HeadersProvider.Key.ACCEPT_LANGUAGE.getValue(), "ru");
-        headers.put(HeadersProvider.Key.CONTENT_TYPE.getValue(), "application/json");
+        final Map<String, String> headers = Utils.baseHeaders();
 
         mDisposable.add(
                 RxUtil.buildRxRequest(mGetKeyApi
@@ -64,17 +73,48 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
     }
 
     @Override
-    public void verify(String gpe, String qr, String token) {
-        final Map<String, String> headers = new HashMap<>(4);
+    public void prepareVerify(String token) {
 
-        headers.put(HeadersProvider.Key.VERSION.getValue(), "2.0");
-        headers.put(HeadersProvider.Key.ACCEPT_LANGUAGE.getValue(), "ru");
-        headers.put(HeadersProvider.Key.CONTENT_TYPE.getValue(), "application/json");
+        gpeObservable = Observable.create(emitter -> frameObservableEmitter = emitter);
+
+        mDisposable.add(gpeObservable
+                .observeOn(Schedulers.computation())
+                .doOnNext(mat -> {
+                    mMatQrBridge.getQrCode(mat);
+                    mView.onShowGPE(mMatQrBridge.getGpeMat());
+                })
+                .takeUntil(mat -> (mMatQrBridge.allowToComplete() && !TextUtils.isEmpty(mMatQrBridge.getCurrentQrCode())))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(results -> {}, error -> mView.onFailure(error), () -> {
+                    final String[] res = mMatQrBridge.getResults();
+                    mView.onSuccessfulQrGpe(res, token);
+                }));
+    }
+
+    @Override
+    public void verify(String gpe, String qr, String token) {
+        final Map<String, String> headers = Utils.baseHeaders();
         headers.put(HeadersProvider.Key.AUTH_TOKEN.getValue(), TextUtils.isEmpty(token) ? "" : token);
 
-        mDisposable.add(RxUtil.buildRxRequest(mVerifyApi
-                        .getVerifiedResult(headers, new VerifyRequest(qr, gpe)))
-                        .subscribe(verify -> mView.onSuccessfulVerify(verify), error -> mView.onFailure(error)));
+        if (!TextUtils.isEmpty(qr) && !TextUtils.isEmpty(gpe)) {
+            mDisposable.add(RxUtil.buildRxRequest(mVerifyApi
+                    .getVerifiedResult(headers, new VerifyRequest(qr, gpe)))
+                    .subscribe(this::verifyResultStrategy, error -> mView.onFailure(error)));
+        }
+        else {
+            mView.onFailure("gpe or qr is null");
+        }
+    }
+
+    @Override
+    public void computeGpe(final CameraBridgeViewBase.CvCameraViewFrame frame) {
+        if (frame == null) {
+            frameObservableEmitter.onComplete();
+            return;
+        }
+        if (frameObservableEmitter != null && !frameObservableEmitter.isDisposed()) {
+            frameObservableEmitter.onNext(frame.rgba());
+        }
     }
 
     @Override
@@ -82,6 +122,7 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
         if (mDisposable != null && !mDisposable.isDisposed()) {
             mDisposable.dispose();
         }
+        mMatQrBridge.unsubscribe();
         super.detachView();
     }
 
@@ -108,6 +149,19 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
         }
         else if (getKey.getError() != null){
             mView.onFailure(getKey.getError().getDescription());
+        }
+    }
+
+    private void verifyResultStrategy(Verify verify) {
+        if (verify == null) {
+            mView.onFailure("Verify NULL");
+            return;
+        }
+        if (verify.getResult() != null) {
+            mView.onSuccessfulVerify(verify);
+        }
+        else if (verify.getError() != null){
+            mView.onFailure(verify.getError().getDescription());
         }
     }
 }
