@@ -23,8 +23,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitProvider {
 
-    private final static String BASE_URL =  "https://cipherme.mdata.com.ua/api/";
-    private final static String BASE_URL_PROD =  "https://cipherme.com/api/";
+    private final static String BASE_URL =  "https://some_url";
+    private final static String BASE_URL_PROD =  "https://some_url";
 
     private Retrofit retrofit;
 
