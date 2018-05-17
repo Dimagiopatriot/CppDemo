@@ -35,6 +35,8 @@ public interface MainScreenContractHolder {
 
         void verify(String gpe, String qr, String token);
 
-        void computeGpe(CameraBridgeViewBase.CvCameraViewFrame frame);
+        void computeGpe();
+
+        void setMainFrame(Mat mainFrame);
     }
 }

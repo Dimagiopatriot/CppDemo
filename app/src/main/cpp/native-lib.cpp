@@ -3,6 +3,8 @@
 #include <opencv2/opencv.hpp>
 #include <cmath>
 
+#define CORN 1000
+
 using namespace cv;
 using namespace std;
 
@@ -20,7 +22,6 @@ void cv_updateCornerOr(int orientation, vector<Point2f> IN, vector<Point2f> &OUT
 bool getIntersectionPoint(Point2f a1, Point2f a2, Point2f b1, Point2f b2, Point2f& intersection);
 float cross(Point2f v1,Point2f v2);
 
-
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobject instance,
@@ -36,7 +37,7 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     // Creation of Intermediate 'Image' Objects required later
     Mat gray(image.size(), CV_MAKETYPE(image.depth(), 1));			// To hold Grayscale Image
     Mat edges(image.size(), CV_MAKETYPE(image.depth(), 1));			// To hold Grayscale Image
-    Mat traces(image.size(), CV_8UC3);								// For Debug Visuals
+    Mat traces(image.size(), CV_64F);								// For Debug Visuals
     Mat qr,qr_raw,qr_gray;
 
     vector<vector<Point> > contours;
@@ -49,10 +50,10 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     int align,orientation;
 
     traces = Scalar(0,0,0);
-    qr_raw = Mat::zeros(500, 500, CV_8UC3 );
+    qr_raw = Mat::zeros(CORN, CORN, CV_64F);
 
-    qr = Mat::zeros(500, 500, CV_8UC3 );
-    qr_gray = Mat::zeros(500, 500, CV_8UC1);
+    qr = Mat::zeros(CORN, CORN, CV_64F );
+    qr_gray = Mat::zeros(CORN, CORN, CV_8UC1);
 
     cvtColor(image,gray,CV_RGB2GRAY);		// Convert Image captured from Image Input to GrayScale
     Canny(gray, edges, 100, 200, 3);		// Apply Canny edge detection on the gray image
@@ -67,7 +68,8 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     vector<Point2f> mc(contours.size());
 
     for( int i = 0; i < contours.size(); i++ )
-    {	mu[i] = moments( contours[i], false );
+    {
+        mu[i] = moments( contours[i], false );
         mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 );
     }
 
@@ -82,7 +84,7 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     for( int i = 0; i < contours.size(); i++ )
     {
         //Find the approximated polygon of the contour we are examining
-        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.01, true);
+        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.005, true);
         if (pointsseq.size() == 4)      // only quadrilaterals contours are examined
         {
             int k=i;
@@ -171,9 +173,6 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
         }
 
 
-        // To ensure any unintended values do not sneak up when QR code is not present
-        float area_top,area_right, area_bottom;
-
         if( top < contours.size() && right < contours.size() && bottom < contours.size() && contourArea(contours[top]) > 10 && contourArea(contours[right]) > 10 && contourArea(contours[bottom]) > 10 )
         {
 
@@ -210,22 +209,26 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
                 warp_matrix = getPerspectiveTransform(src, dst);
                 warpPerspective(image, qr_raw, warp_matrix, Size(qr.cols, qr.rows));
 
-                Mat sharped = Mat::zeros(500, 500, CV_8UC3);
-                GaussianBlur(qr_raw, sharped, Size(0, 0), 3);
-                addWeighted(qr_raw, 1.5, sharped, -0.5, 0, sharped);
-
-                copyMakeBorder( sharped, qr_thres, 10, 10, 10, 10,BORDER_CONSTANT, Scalar(0,0,0));
+                copyMakeBorder( qr_raw, qr_thres, 10, 10, 10, 10,BORDER_CONSTANT, Scalar(0,0,0));
             }
 
-            //Draw contours on the image
-            drawContours( image, contours, top , Scalar(255,200,0), 2, 8, hierarchy, 0 );
-            drawContours( image, contours, right , Scalar(0,0,255), 2, 8, hierarchy, 0 );
-            drawContours( image, contours, bottom , Scalar(255,0,100), 2, 8, hierarchy, 0 );
+            mu.clear();
+            mc.clear();
+
+            contours.clear();
+            hierarchy.clear();
+            pointsseq.clear();
 
             return (jint) 1;
         }
     }
 
+    mu.clear();
+    mc.clear();
+
+    contours.clear();
+    hierarchy.clear();
+    pointsseq.clear();
 
     return (jint) 0;
 }
@@ -486,15 +489,28 @@ Java_com_cipherme_gpe_GPEReader_laplacianMode(JNIEnv *env, jobject instance, jlo
     Mat& src = *(Mat*) matSrc;
 
     Mat M = Mat_<double >(3, 1) << (1, 2, -1);
-    Mat G = getGaussianKernel(3,-1,CV_64F);
+    Mat G = getGaussianKernel(3,-1,CV_32F);
     Mat Lx, Ly;
 
-    sepFilter2D(matSrc, Lx, CV_64F, M, G);
-    sepFilter2D(matSrc, Ly, CV_64F, G, M);
+    sepFilter2D(matSrc, Lx, CV_32F, M, G);
+    sepFilter2D(matSrc, Ly, CV_32F, G, M);
     Mat FM = abs(Lx) + abs(Ly);
 
-//    delete M, G, Lx, Ly;
-
     return (jdouble) mean(FM).val[0];
+
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_cipherme_cppdemo_MainActivity_getCroppedMat(JNIEnv *env, jobject instance, jlong src) {
+
+    Mat& srcM = *(Mat*) src;
+
+    Mat imgPanel(100, 250, CV_8UC1, Scalar(0));
+    Mat imgPanelRoi(imgPanel, Rect(0, 0, srcM.cols, srcM.rows));
+
+    srcM.copyTo(imgPanelRoi);
+
+    return (jlong) &imgPanel;
 
 }

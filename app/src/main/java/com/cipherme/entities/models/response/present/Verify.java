@@ -12,7 +12,7 @@ public final class Verify extends Response<VerifyData> {
     @Override
     public String toString() {
         return "Verify{" +
-                "data=" + data == null ? "" : data.toString() +
+                "data=" + data.toString() +
                 '}';
     }
 }

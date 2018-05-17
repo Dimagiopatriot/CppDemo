@@ -15,6 +15,7 @@ import com.cipherme.api.headers.HeadersProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -71,5 +72,17 @@ public class Utils {
             }
         }
         return true;
+    }
+
+    public static double findMaxInDoubleSet(Collection<Double> doubles) {
+        double max = Double.MIN_VALUE;
+        for (Double d : doubles) {
+            if (d != null) {
+                if (d > max) {
+                    max = d;
+                }
+            }
+        }
+        return max;
     }
 }

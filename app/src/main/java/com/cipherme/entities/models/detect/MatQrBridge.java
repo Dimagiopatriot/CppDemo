@@ -2,18 +2,24 @@ package com.cipherme.entities.models.detect;
 
 import android.text.TextUtils;
 
+import com.cipherme.util.Utils;
+
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MatQrBridge implements MatComputation.MatComputationListener, GpeComputation.GpeComputationListener {
+public class MatQrBridge implements ComputationListener {
 
     private MatComputation matComputation = new MatComputation();
     private GpeComputation gpeComputation = new GpeComputation();
 
     private Mat gpeMat;
+    private Mat qrCode;
+
+    private Boolean isLocked = false;
 
     private String currentQrCode;
     private String newQrCode;
@@ -38,7 +44,14 @@ public class MatQrBridge implements MatComputation.MatComputationListener, GpeCo
     }
 
     public void getQrCode(Mat resImage) {
-        matComputation.convertedQrGpe(resImage, this);
+        changeLocked(true);
+        Mat dest = new Mat();
+        resImage.copyTo(dest);
+        Rect rect = new Rect(0, 0, 550, 550);
+        Mat res = new Mat(dest, rect);
+//        gpeMat = res;
+        matComputation.convertedQrGpe(res, this);
+//        onUnlock();
     }
 
     public boolean allowToComplete() {
@@ -49,7 +62,7 @@ public class MatQrBridge implements MatComputation.MatComputationListener, GpeCo
         final String[] results = new String[2];
         Double key = null;
         if (!laplacianToGpe.keySet().isEmpty()) {
-            key = Collections.max(laplacianToGpe.keySet());
+            key = Utils.findMaxInDoubleSet(laplacianToGpe.keySet());
         }
         if (key != null) {
             finalGpe = laplacianToGpe.get(key);
@@ -77,12 +90,29 @@ public class MatQrBridge implements MatComputation.MatComputationListener, GpeCo
     public void onQrCodeFounded(Mat qrCodeRes) {
         setAndCheckIsQrChanged(newQrCode);
         if (qrCodeRes != null) {
-            Double laplacian = gpeComputation.getLaplacian(qrCodeRes);
+            qrCode = qrCodeRes;
+//            Double laplacian = gpeComputation.getLaplacian(qrCodeRes);
             String gpeBase64 = gpeComputation.convertedGpeCode(qrCodeRes, this);
-            if (laplacian != null && !TextUtils.isEmpty(gpeBase64)) {
-                laplacianToGpe.put(laplacian, gpeBase64);
-            }
+            onUnlock();
+//            if (laplacian != null && !TextUtils.isEmpty(gpeBase64)) {
+//                laplacianToGpe.put(laplacian, gpeBase64);
+//            }
         }
+    }
+
+    @Override
+    public void onUnlock() {
+        changeLocked(false);
+    }
+
+    private void changeLocked(Boolean isLocked) {
+        synchronized (this.isLocked) {
+            this.isLocked = isLocked;
+        }
+    }
+
+    public synchronized boolean isLockedRes() {
+        return isLocked == null ? false : isLocked;
     }
 
     @Override

@@ -2,15 +2,19 @@ package org.opencv.android;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
@@ -371,4 +375,59 @@ public class JavaCamera2View extends CameraBridgeViewBase {
         private int mWidth;
         private int mHeight;
     };
+
+
+    public void setZoom() {
+        try {
+            Rect zoom = new Rect(600/2, 600/2, 600/2, 600/2);
+            mPreviewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom);
+            mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), null, mBackgroundHandler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void turnOffTheFlash() {
+        try {
+            mPreviewRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
+            mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), null, mBackgroundHandler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void turnOnTheFlash() {
+        try {
+            mPreviewRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_OFF);
+            mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), null, mBackgroundHandler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+
+        }
+    }
+//
+//    public void setMaxPreviewFPS(){
+//        Camera.Parameters params = mCameraDevice.getParameters();
+//        final List<int[]> frameRates = params.getSupportedPreviewFpsRange();
+//        if (frameRates != null) {
+//            final int last = findMinMax(frameRates);
+//            final int minFps = frameRates.get(last)[Camera.Parameters.PREVIEW_FPS_MIN_INDEX];
+//            final int maxFps = frameRates.get(last)[Camera.Parameters.PREVIEW_FPS_MAX_INDEX];
+//            params.setPreviewFpsRange(minFps, maxFps);
+//            mCamera.setParameters(params);
+//        }
+//    }
+
+    private int findMinMax(final List<int[]> frameRates) {
+        int index = -1;
+        int maxMin = Integer.MIN_VALUE;
+        for (int i  = 0; i < frameRates.size(); ++i) {
+            int min = frameRates.get(i)[Camera.Parameters.PREVIEW_FPS_MIN_INDEX];
+            if (min > maxMin) {
+                maxMin = min;
+                index = i;
+            }
+        }
+        return index;
+    }
 }

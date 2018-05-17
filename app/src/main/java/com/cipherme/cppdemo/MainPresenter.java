@@ -18,31 +18,31 @@ import com.cipherme.entities.models.response.present.Verify;
 import com.cipherme.util.RxUtil;
 import com.cipherme.util.Utils;
 
-import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.core.Mat;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import retrofit2.Retrofit;
 
 public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainView> implements
         MainScreenContractHolder.MainScreenContract {
 
+    private static final String TAG = "MainPresenter";
+
+    Mat mainFrame;
     MainScreenContractHolder.MainView mView;
     CompositeDisposable mDisposable;
     GetKeyAuthApi mGetKeyApi;
     VerifyApi mVerifyApi;
     MatQrBridge mMatQrBridge;
 
-    Observable<Mat> gpeObservable;
     ObservableEmitter<Mat> frameObservableEmitter;
-    Disposable frameDisposable;
 
     public MainPresenter(Retrofit retrofit, MainScreenContractHolder.MainView mView) {
         this.mView = mView;
@@ -75,17 +75,19 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
     @Override
     public void prepareVerify(String token) {
 
-        gpeObservable = Observable.create(emitter -> frameObservableEmitter = emitter);
-
-        mDisposable.add(gpeObservable
+        mDisposable.add(Observable
+                .<Mat>create(emitter -> frameObservableEmitter = emitter)
                 .observeOn(Schedulers.computation())
                 .doOnNext(mat -> {
-                    mMatQrBridge.getQrCode(mat);
-                    mView.onShowGPE(mMatQrBridge.getGpeMat());
+                    if (!mMatQrBridge.isLockedRes()) {
+                        mMatQrBridge.getQrCode(mat);
+                        mView.onShowGPE(mMatQrBridge.getGpeMat());
+                    }
                 })
-                .takeUntil(mat -> (mMatQrBridge.allowToComplete() && !TextUtils.isEmpty(mMatQrBridge.getCurrentQrCode())))
+//                .takeUntil(mat -> (mMatQrBridge.allowToComplete() && !TextUtils.isEmpty(mMatQrBridge.getCurrentQrCode())))
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(results -> {}, error -> mView.onFailure(error), () -> {
+                .subscribe(results -> {
+                }, error -> mView.onFailure(error), () -> {
                     final String[] res = mMatQrBridge.getResults();
                     mView.onSuccessfulQrGpe(res, token);
                 }));
@@ -100,21 +102,40 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
             mDisposable.add(RxUtil.buildRxRequest(mVerifyApi
                     .getVerifiedResult(headers, new VerifyRequest(qr, gpe)))
                     .subscribe(this::verifyResultStrategy, error -> mView.onFailure(error)));
-        }
-        else {
+        } else {
             mView.onFailure("gpe or qr is null");
         }
     }
 
     @Override
-    public void computeGpe(final CameraBridgeViewBase.CvCameraViewFrame frame) {
-        if (frame == null) {
-            frameObservableEmitter.onComplete();
-            return;
-        }
-        if (frameObservableEmitter != null && !frameObservableEmitter.isDisposed()) {
-            frameObservableEmitter.onNext(frame.rgba());
-        }
+    public void setMainFrame(Mat mainFrame) {
+        this.mainFrame = mainFrame;
+    }
+
+    //TODO:Переписать это и prepareVerify!!!!
+
+    @Override
+    public void computeGpe() {
+        mDisposable.add(Observable.<Mat>create(o ->
+                Schedulers.computation().schedulePeriodicallyDirect(() -> {
+                            if (mainFrame != null) {
+                                o.onNext(mainFrame);
+                            }
+                        },
+                        0, 0, TimeUnit.MILLISECONDS))
+                .subscribe(f -> {
+                    if (frameObservableEmitter != null && !frameObservableEmitter.isDisposed()) {
+                        if (f != null) {
+                            frameObservableEmitter.onNext(f);
+                            Log.d(TAG, " Frame emitted");
+                        }
+                    }
+                }, e -> Log.d(TAG, "emitting error"), () -> {
+                    if (frameObservableEmitter != null) {
+                        frameObservableEmitter.onComplete();
+                    }
+                })
+        );
     }
 
     @Override
@@ -133,8 +154,7 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
         }
         if (auth.getResult() != null) {
             mView.onSuccessfulAuth(auth.getResult().getToken());
-        }
-        else if (auth.getError() != null){
+        } else if (auth.getError() != null) {
             mView.onFailure(auth.getError().getDescription());
         }
     }
@@ -146,8 +166,7 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
         }
         if (getKey.getResult() != null) {
             mView.onSuccessfulGetKey(getKey);
-        }
-        else if (getKey.getError() != null){
+        } else if (getKey.getError() != null) {
             mView.onFailure(getKey.getError().getDescription());
         }
     }
@@ -159,8 +178,7 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
         }
         if (verify.getResult() != null) {
             mView.onSuccessfulVerify(verify);
-        }
-        else if (verify.getError() != null){
+        } else if (verify.getError() != null) {
             mView.onFailure(verify.getError().getDescription());
         }
     }

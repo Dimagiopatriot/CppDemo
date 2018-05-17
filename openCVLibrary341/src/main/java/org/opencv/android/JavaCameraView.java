@@ -396,13 +396,55 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
         Camera.Parameters params = mCamera.getParameters();
         params.setFlashMode(params.FLASH_MODE_OFF);
         mCamera.setParameters(params);
-//        setZoom(-1);
     }
 
     public void turnOnTheFlash() {
         Camera.Parameters params = mCamera.getParameters();
         params.setFlashMode(params.FLASH_MODE_TORCH);
         mCamera.setParameters(params);
-//        setZoom(-1);
+    }
+
+    public void setMaxPreviewFPS(){
+        Camera.Parameters params = mCamera.getParameters();
+        final List<int[]> frameRates = params.getSupportedPreviewFpsRange();
+        if (frameRates != null) {
+            final int last = findMinMax(frameRates);
+            final int minFps = frameRates.get(last)[Camera.Parameters.PREVIEW_FPS_MIN_INDEX];
+            final int maxFps = frameRates.get(last)[Camera.Parameters.PREVIEW_FPS_MAX_INDEX];
+            params.setPreviewFpsRange(minFps, maxFps);
+            mCamera.setParameters(params);
+        }
+    }
+
+    public void setStabilization(boolean stab) {
+        Camera.Parameters params = mCamera.getParameters();
+        if (params.isVideoStabilizationSupported()) {
+            params.setVideoStabilization(stab);
+        }
+        mCamera.setParameters(params);
+    }
+
+    public void set60hzFrequency() {
+        Camera.Parameters parameters = mCamera.getParameters();
+        List<String> antibandingModes = parameters.getSupportedAntibanding();
+        if (antibandingModes != null && !antibandingModes.isEmpty()) {
+            if (antibandingModes.contains(Camera.Parameters.ANTIBANDING_60HZ)) {
+                parameters.setAntibanding(Camera.Parameters.ANTIBANDING_60HZ);
+                mCamera.setParameters(parameters);
+            }
+        }
+    }
+
+    private int findMinMax(final List<int[]> frameRates) {
+        int index = -1;
+        int maxMin = Integer.MIN_VALUE;
+        for (int i  = 0; i < frameRates.size(); ++i) {
+            int min = frameRates.get(i)[Camera.Parameters.PREVIEW_FPS_MIN_INDEX];
+            if (min > maxMin) {
+                maxMin = min;
+                index = i;
+            }
+        }
+        return index;
     }
 }

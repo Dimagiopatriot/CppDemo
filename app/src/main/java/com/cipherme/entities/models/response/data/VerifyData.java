@@ -23,8 +23,8 @@ public final class VerifyData {
     @Override
     public String toString() {
         return "VerifyData{" +
-                "scanResult=" + scanResult == null ? "scan: null" : scanResult.toString() +
-                ", product=" + product == null ? "product: null" : product.toString() +
+                "scanResult=" + scanResult.toString() +
+                ", product=" + product.toString() +
                 '}';
     }
 }

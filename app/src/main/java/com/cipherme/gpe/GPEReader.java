@@ -21,7 +21,7 @@ public class GPEReader {
 
     public boolean findGPE(final Mat image, float deleterMaxWidth, float deleterMinWidth, float deleterMaxHeight,
                            float deleterMinHeight, float centerPercentX, float centerPercentY, final Mat gpe, double thresDeleter) {
-        Mat roi = Mat.zeros(500, 500, CvType.CV_8UC1);
+        Mat roi = Mat.zeros(1000, 1000, CvType.CV_8UC1);
         Imgproc.cvtColor(image, roi, Imgproc.COLOR_RGB2GRAY);
         Core.MinMaxLocResult maxLocResult = Core.minMaxLoc(roi);
 
@@ -115,8 +115,8 @@ public class GPEReader {
                 Mat weirdGpe = gpe.clone();
                 unsharpMasking(weirdGpe.nativeObj, gpe.nativeObj);
 
-                Mat temp = gpe.clone();
-                temp.convertTo(gpe, -1, 0.95, 40);
+//                Mat temp = gpe.clone();
+//                temp.convertTo(gpe, -1, 0.95, 40);
 
                 return true;
             }

@@ -20,25 +20,23 @@ public class MatComputation {
     private BinaryBitmap binaryBitmap;
     private Reader reader = new MultiFormatReader();
 
-    protected interface MatComputationListener {
-        void onQrCodeFounded(Mat qrCodeRes);
-        void onQrCodeDecoded(String qrDecoded);
-    }
-
-    public void convertedQrGpe(Mat mat, MatComputationListener listener) {
-        Mat qrCode = new Mat(500, 500, CvType.CV_8UC3);
-        final int qrCodeFounded = calcQR(mat.nativeObj, qrCode.nativeObj);
-        if (qrCodeFounded == 1) {
+    public void convertedQrGpe(Mat mat, ComputationListener listener) {
+        Mat qrCode = new Mat(1000, 1000, CvType.CV_8UC3);
+        final int qrCodeFounded = 0; /*calcQR(mat.nativeObj, qrCode.nativeObj);*/
+        if (qrCodeFounded == 0) {
             Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(mat, bitmap);
             try {
                 listener.onQrCodeDecoded(decodeQr(bitmap));
-                listener.onQrCodeFounded(qrCode);
+                listener.onQrCodeFounded(mat);
             } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                listener.onUnlock();
             }
+        } else {
+            listener.onUnlock();
         }
-        return;
     }
 
     private String decodeQr(Bitmap bitmap) throws Exception {

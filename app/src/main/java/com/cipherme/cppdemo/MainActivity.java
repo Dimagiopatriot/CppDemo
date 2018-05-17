@@ -4,12 +4,11 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.support.annotation.UiThread;
+import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.Toast;
@@ -27,7 +26,6 @@ import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.Rect;
 
 public class MainActivity extends AppCompatActivity implements
         CameraBridgeViewBase.CvCameraViewListener2, MainScreenContractHolder.MainView {
@@ -42,10 +40,11 @@ public class MainActivity extends AppCompatActivity implements
     protected Switch mLight;
     protected MainPresenter mMainPresenter;
 
-    protected Mat mMainFrame;
+    protected volatile Mat mMainFrame;
     protected Mat mQrCode;
 
-    Rect rect;
+    protected boolean alwaysRun = true;
+    private Handler handler = new Handler();
 
     protected RetrofitProvider retrofitProvider = new RetrofitProvider();
 
@@ -92,21 +91,18 @@ public class MainActivity extends AppCompatActivity implements
         mJavaCamera2View.setVisibility(View.VISIBLE);
         mJavaCamera2View.setCvCameraViewListener(this);
 
-        mBitmap = Bitmap.createBitmap(500, 500, Bitmap.Config.ARGB_8888);
+        mBitmap = Bitmap.createBitmap(1000, 1000, Bitmap.Config.ARGB_8888);
         gpeReader = new GPEReader();
 
         mLight = findViewById(R.id.light);
-        mLight.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (mJavaCamera2View != null)
-                    if (isChecked) {
-                        mJavaCamera2View.turnOnTheFlash();
-                    }
-                    else {
-                         mJavaCamera2View.turnOffTheFlash();
-                    }
-            }
+        mLight.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (mJavaCamera2View != null)
+                if (isChecked) {
+                    mJavaCamera2View.turnOnTheFlash();
+                }
+                else {
+                     mJavaCamera2View.turnOffTheFlash();
+                }
         });
     }
 
@@ -117,6 +113,7 @@ public class MainActivity extends AppCompatActivity implements
             mMainPresenter.attachView(this);
             showProgressDialog(this);
             mMainPresenter.getKey(Utils.getDeviceUUID(this));
+            mMainPresenter.computeGpe();
         }
         else {
             attemptToPermissions();
@@ -153,13 +150,17 @@ public class MainActivity extends AppCompatActivity implements
         super.onDestroy();
         if (mJavaCamera2View != null)
             mJavaCamera2View.disableView();
+        handler.removeCallbacks(null);
     }
 
     @Override
     public void onCameraViewStarted(int width, int height) {
         mMainFrame = new Mat(height, width, CvType.CV_8UC4);
-        mQrCode = new Mat(500, 500, CvType.CV_8UC3);
-        mJavaCamera2View.setZoom(15);
+        mQrCode = new Mat(1000, 1000, CvType.CV_32F);
+        mJavaCamera2View.setZoom(-1);
+        mJavaCamera2View.setStabilization(true);
+        mJavaCamera2View.setMaxPreviewFPS();
+        mJavaCamera2View.set60hzFrequency();
     }
 
     @Override
@@ -172,7 +173,7 @@ public class MainActivity extends AppCompatActivity implements
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
         mMainFrame = inputFrame.rgba();
-        mMainPresenter.computeGpe(inputFrame);
+        mMainPresenter.setMainFrame(mMainFrame);
         return mMainFrame;
     }
 
@@ -185,7 +186,6 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    @UiThread
     protected void setBitmap(final Bitmap bitmap) {
         if (mQrResult != null)
             mQrResult.setImageBitmap(bitmap);
@@ -204,8 +204,8 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onSuccessfulQrGpe(String[] results, String token) {
-        showProgressDialog(this);
-        mMainPresenter.verify(results[1], results[0], token);
+//        showProgressDialog(this);
+//        mMainPresenter.verify(results[1], results[0], token);
     }
 
     @Override
@@ -218,12 +218,18 @@ public class MainActivity extends AppCompatActivity implements
     public void onFailure(Throwable throwable) {
         hideProgressDialog();
         Toast.makeText(this, throwable.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+        if (alwaysRun) {
+            mMainPresenter.prepareVerify("run");
+        }
     }
 
     @Override
     public void onFailure(String message) {
         hideProgressDialog();
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        if (alwaysRun) {
+            mMainPresenter.prepareVerify("run");
+        }
     }
 
     private void attemptToPermissions() {
@@ -253,4 +259,6 @@ public class MainActivity extends AppCompatActivity implements
         if (dialog != null)
             dialog.dismiss();
     }
+
+    private native long getCroppedMat(long src);
 }
