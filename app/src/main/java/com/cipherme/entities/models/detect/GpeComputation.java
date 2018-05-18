@@ -21,17 +21,18 @@ public class GpeComputation {
 
     private GPEReader gpeReader = new GPEReader();
 
-    public String convertedGpeCode(Mat matRes, ComputationListener listener) {
+    public String convertedGpeCode(Mat gpe, Mat matRes, ComputationListener listener) {
         Mat gpeRes = new Mat();
         final boolean gpeFounded = gpeReader.findGPE(matRes, DELETER_MAX_WIDTH, DELETER_MIN_WIDTH,
                 DELETER_MAX_HEIGHT, DELETER_MIN_HEIGHT, CENTER_PERCENT_X, CENTER_PECENT_Y, gpeRes, THRES_DELETER);
         if (gpeFounded) {
             try {
-                listener.onGpeFounded(gpeRes);
-                Bitmap bitmap = Bitmap.createBitmap(gpeRes.cols(), gpeRes.rows(), Bitmap.Config.ARGB_8888);
+                Bitmap bitmap = Bitmap.createBitmap(gpeRes.width(), gpeRes.height(), Bitmap.Config.ARGB_8888);
                 org.opencv.android.Utils.matToBitmap(gpeRes, bitmap);
+                gpeRes.copyTo(gpe);
+//                return Utils.matToBase64Stroke(gpe);
                 return Utils.toStr(bitmap);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             } finally {
                 listener.onUnlock();

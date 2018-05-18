@@ -13,6 +13,8 @@ import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
+import static com.cipherme.gpe.QrProcessing.calcQR;
+
 public class MatComputation {
 
     private LuminanceSource source;
@@ -21,14 +23,16 @@ public class MatComputation {
     private Reader reader = new MultiFormatReader();
 
     public void convertedQrGpe(Mat mat, ComputationListener listener) {
-        Mat qrCode = new Mat(1000, 1000, CvType.CV_8UC3);
-        final int qrCodeFounded = 0; /*calcQR(mat.nativeObj, qrCode.nativeObj);*/
-        if (qrCodeFounded == 0) {
-            Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+        Mat qrCode = new Mat(mat.rows(), mat.cols(), CvType.CV_8UC3);
+        final int qrCodeFounded = calcQR(mat.nativeObj, qrCode.nativeObj);
+        if (qrCodeFounded == 1) {
+            Bitmap bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(mat, bitmap);
             try {
+
                 listener.onQrCodeDecoded(decodeQr(bitmap));
-                listener.onQrCodeFounded(mat);
+                listener.onQrCodeFounded(qrCode);
+//
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -55,6 +59,4 @@ public class MatComputation {
         hybridBinarizer = null;
         binaryBitmap = null;
     }
-
-    private static native int calcQR(long matRes, long matQr);
 }

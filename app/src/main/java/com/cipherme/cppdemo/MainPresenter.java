@@ -84,7 +84,7 @@ public class MainPresenter extends BasePresenter<MainScreenContractHolder.MainVi
                         mView.onShowGPE(mMatQrBridge.getGpeMat());
                     }
                 })
-//                .takeUntil(mat -> (mMatQrBridge.allowToComplete() && !TextUtils.isEmpty(mMatQrBridge.getCurrentQrCode())))
+                .takeUntil(mat -> (mMatQrBridge.allowToComplete() && !TextUtils.isEmpty(mMatQrBridge.getCurrentQrCode())))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(results -> {
                 }, error -> mView.onFailure(error), () -> {

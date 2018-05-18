@@ -24,7 +24,7 @@ float cross(Point2f v1,Point2f v2);
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobject instance,
+Java_com_cipherme_gpe_QrProcessing_calcQR(JNIEnv *env, jobject instance,
                             jlong matRes, jlong matQr) {
     Mat& image = *(Mat*) matRes;
     Mat& qr_thres = *(Mat*) matQr;
@@ -37,7 +37,7 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     // Creation of Intermediate 'Image' Objects required later
     Mat gray(image.size(), CV_MAKETYPE(image.depth(), 1));			// To hold Grayscale Image
     Mat edges(image.size(), CV_MAKETYPE(image.depth(), 1));			// To hold Grayscale Image
-    Mat traces(image.size(), CV_64F);								// For Debug Visuals
+    Mat traces(image.size(), CV_8UC3);								// For Debug Visuals
     Mat qr,qr_raw,qr_gray;
 
     vector<vector<Point> > contours;
@@ -50,13 +50,13 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     int align,orientation;
 
     traces = Scalar(0,0,0);
-    qr_raw = Mat::zeros(CORN, CORN, CV_64F);
+    qr_raw = Mat::zeros(image.rows, image.cols, CV_8UC3);
 
-    qr = Mat::zeros(CORN, CORN, CV_64F );
-    qr_gray = Mat::zeros(CORN, CORN, CV_8UC1);
+    qr = Mat::zeros(image.rows, image.cols, CV_8UC3);
+    qr_gray = Mat::zeros(image.rows, image.cols, CV_8UC1);
 
     cvtColor(image,gray,CV_RGB2GRAY);		// Convert Image captured from Image Input to GrayScale
-    Canny(gray, edges, 100, 200, 3);		// Apply Canny edge detection on the gray image
+    Canny(gray, edges, 30, 200, 3);		// Apply Canny edge detection on the gray image
 
 
     findContours( edges, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours with hierarchy
@@ -84,7 +84,7 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
     for( int i = 0; i < contours.size(); i++ )
     {
         //Find the approximated polygon of the contour we are examining
-        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.005, true);
+        approxPolyDP(contours[i], pointsseq, arcLength(contours[i], true)*0.01, true);
         if (pointsseq.size() == 4)      // only quadrilaterals contours are examined
         {
             int k=i;
@@ -211,7 +211,7 @@ Java_com_cipherme_entities_models_detect_MatComputation_calcQR(JNIEnv *env, jobj
 
                 copyMakeBorder( qr_raw, qr_thres, 10, 10, 10, 10,BORDER_CONSTANT, Scalar(0,0,0));
             }
-
+//
             mu.clear();
             mc.clear();
 
@@ -497,20 +497,5 @@ Java_com_cipherme_gpe_GPEReader_laplacianMode(JNIEnv *env, jobject instance, jlo
     Mat FM = abs(Lx) + abs(Ly);
 
     return (jdouble) mean(FM).val[0];
-
-}
-
-extern "C"
-JNIEXPORT jlong JNICALL
-Java_com_cipherme_cppdemo_MainActivity_getCroppedMat(JNIEnv *env, jobject instance, jlong src) {
-
-    Mat& srcM = *(Mat*) src;
-
-    Mat imgPanel(100, 250, CV_8UC1, Scalar(0));
-    Mat imgPanelRoi(imgPanel, Rect(0, 0, srcM.cols, srcM.rows));
-
-    srcM.copyTo(imgPanelRoi);
-
-    return (jlong) &imgPanel;
 
 }

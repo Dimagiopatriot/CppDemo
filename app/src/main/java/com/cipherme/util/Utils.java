@@ -12,6 +12,9 @@ import android.util.Base64;
 
 import com.cipherme.api.headers.HeadersProvider;
 
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -50,6 +53,16 @@ public class Utils {
         ByteArrayOutputStream bous = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, bous);
         return Base64.encodeToString(bous.toByteArray(), Base64.DEFAULT);
+    }
+
+    public static String matToBase64Stroke(Mat mat) {
+        Mat m = mat.clone();
+        mat.convertTo(mat, CvType.CV_64FC3);
+        int size = (int) (m.total() * m.channels());
+        byte[] temp = new byte[size];
+        m.get(0, 0, temp);
+
+        return Base64.encodeToString(temp, Base64.DEFAULT);
     }
 
     public static Map<String, String> baseHeaders() {

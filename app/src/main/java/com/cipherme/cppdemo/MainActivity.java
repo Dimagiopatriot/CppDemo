@@ -22,10 +22,12 @@ import com.cipherme.util.Utils;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.JavaCamera2View;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 public class MainActivity extends AppCompatActivity implements
         CameraBridgeViewBase.CvCameraViewListener2, MainScreenContractHolder.MainView {
@@ -53,7 +55,7 @@ public class MainActivity extends AppCompatActivity implements
         System.loadLibrary("opencv_java3");
     }
 
-    protected JavaCameraView mJavaCamera2View;
+    protected JavaCamera2View mJavaCamera2View;
     protected ImageView mQrResult;
     protected ProgressDialog dialog;
 
@@ -125,7 +127,7 @@ public class MainActivity extends AppCompatActivity implements
         super.onResume();
         if (OpenCVLoader.initDebug()) {
             mBaseLoaderCallback.onManagerConnected(BaseLoaderCallback.SUCCESS);
-
+            Toast.makeText(this, "OpenCV loaded succesfully :)", Toast.LENGTH_SHORT).show();
         }
         else {
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_4_0, this, mBaseLoaderCallback);
@@ -156,11 +158,11 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onCameraViewStarted(int width, int height) {
         mMainFrame = new Mat(height, width, CvType.CV_8UC4);
-        mQrCode = new Mat(1000, 1000, CvType.CV_32F);
-        mJavaCamera2View.setZoom(-1);
-        mJavaCamera2View.setStabilization(true);
-        mJavaCamera2View.setMaxPreviewFPS();
-        mJavaCamera2View.set60hzFrequency();
+        mQrCode = new Mat(1000, 1000, CvType.CV_8UC3);
+//        mJavaCamera2View.setZoom(15);
+//        mJavaCamera2View.setStabilization(true);
+//        mJavaCamera2View.setMaxPreviewFPS();
+//        mJavaCamera2View.set60hzFrequency();
     }
 
     @Override
@@ -173,6 +175,8 @@ public class MainActivity extends AppCompatActivity implements
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
         mMainFrame = inputFrame.rgba();
+//        Imgproc.cvtColorTwoPlane(new Mat(inputFrame.rgba().height(), inputFrame.rgba().width(), CvType.CV_8UC1), new Mat(inputFrame.rgba().height() / 2,
+//                inputFrame.rgba().width() / 2, CvType.CV_8UC2), mMainFrame, Imgproc.COLOR_YUV2RGBA_NV21);
         mMainPresenter.setMainFrame(mMainFrame);
         return mMainFrame;
     }
@@ -180,7 +184,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onShowGPE(Mat mat) {
         if (mat != null) {
-            final Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+            final Bitmap bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888);
             org.opencv.android.Utils.matToBitmap(mat, bitmap);
             runOnUiThread(() -> setBitmap(bitmap));
         }
@@ -204,8 +208,8 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onSuccessfulQrGpe(String[] results, String token) {
-//        showProgressDialog(this);
-//        mMainPresenter.verify(results[1], results[0], token);
+        showProgressDialog(this);
+        mMainPresenter.verify(results[1], results[0], token);
     }
 
     @Override
@@ -259,6 +263,4 @@ public class MainActivity extends AppCompatActivity implements
         if (dialog != null)
             dialog.dismiss();
     }
-
-    private native long getCroppedMat(long src);
 }

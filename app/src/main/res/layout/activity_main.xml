@@ -9,7 +9,7 @@
     xmlns:open_cv="http://schemas.android.com/apk/res-auto"
     tools:context=".MainActivity">
 
-    <org.opencv.android.JavaCameraView
+    <org.opencv.android.JavaCamera2View
         android:id="@+id/getFromCamera"
         android:layout_width="match_parent"
         open_cv:show_fps="true"

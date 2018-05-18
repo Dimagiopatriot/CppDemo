@@ -4,7 +4,7 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "com.cipherme.cppdemo"
-        minSdkVersion 17
+        minSdkVersion 21
         targetSdkVersion 27
         versionCode 1
         versionName "1.0"
@@ -31,7 +31,7 @@ android {
             enable true
             reset()
             include "armeabi", "armeabi-v7a", 'arm64-v8a', "x86_64"
-            universalApk false
+            universalApk true
         }
     }
     sourceSets { main { jni.srcDirs = ['src/main/jni', 'src/main/jniLibs/'] } }

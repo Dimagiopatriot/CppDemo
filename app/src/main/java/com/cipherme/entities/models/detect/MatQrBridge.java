@@ -6,6 +6,7 @@ import com.cipherme.util.Utils;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
+import org.opencv.imgproc.Imgproc;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,13 +46,15 @@ public class MatQrBridge implements ComputationListener {
 
     public void getQrCode(Mat resImage) {
         changeLocked(true);
+
         Mat dest = new Mat();
         resImage.copyTo(dest);
-        Rect rect = new Rect(0, 0, 550, 550);
+        int c = resImage.width() > resImage.height() ? resImage.height() : resImage.width();
+        int square = (int) (c);
+        Rect rect = new Rect(resImage.width() / 2 - square/2, resImage.height()/2 - square / 2, square, square);
         Mat res = new Mat(dest, rect);
-//        gpeMat = res;
+
         matComputation.convertedQrGpe(res, this);
-//        onUnlock();
     }
 
     public boolean allowToComplete() {
@@ -90,13 +93,14 @@ public class MatQrBridge implements ComputationListener {
     public void onQrCodeFounded(Mat qrCodeRes) {
         setAndCheckIsQrChanged(newQrCode);
         if (qrCodeRes != null) {
-            qrCode = qrCodeRes;
-//            Double laplacian = gpeComputation.getLaplacian(qrCodeRes);
-            String gpeBase64 = gpeComputation.convertedGpeCode(qrCodeRes, this);
+            Mat gpe = new Mat();
+            String gpeBase64 = gpeComputation.convertedGpeCode(gpe, qrCodeRes, this);
+            Double laplacian = gpeComputation.getLaplacian(gpe);
+            gpeMat = gpe;
             onUnlock();
-//            if (laplacian != null && !TextUtils.isEmpty(gpeBase64)) {
-//                laplacianToGpe.put(laplacian, gpeBase64);
-//            }
+            if (laplacian != null && !TextUtils.isEmpty(gpeBase64)) {
+                laplacianToGpe.put(laplacian, gpeBase64);
+            }
         }
     }
 
@@ -113,11 +117,6 @@ public class MatQrBridge implements ComputationListener {
 
     public synchronized boolean isLockedRes() {
         return isLocked == null ? false : isLocked;
-    }
-
-    @Override
-    public void onGpeFounded(Mat mat) {
-        gpeMat = mat;
     }
 
     public Mat getGpeMat() {
